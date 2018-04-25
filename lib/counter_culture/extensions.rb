@@ -122,6 +122,10 @@ module CounterCulture
           counter_cache_name_was = counter.counter_cache_name_for(counter.previous_model(self))
           counter_cache_name = counter.counter_cache_name_for(self)
 
+          #if counter_cache_name == 'heavy_reviews_count'
+          #  require 'pry'; binding.pry
+          #end
+
           if counter.first_level_relation_changed?(self) ||
               (counter.delta_column && counter.attribute_changed?(self, counter.delta_column)) ||
               counter_cache_name != counter_cache_name_was
@@ -132,10 +136,11 @@ module CounterCulture
             counter.change_counter_cache(self, :increment => true, :counter_column => counter_cache_name)
             # decrement the counter cache of the old value
             counter.change_counter_cache(self, :increment => false, :was => true, :counter_column => counter_cache_name_was)
+          elsif counter.watch_attrs.present? && (previous_changes.keys & counter.watch_attrs).any? && counter.delta_magnitude.is_a?(Proc)
+            counter.change_counter_cache(self)
           end
         end
       end
     end
-
   end
 end

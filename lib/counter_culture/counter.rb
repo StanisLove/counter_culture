@@ -1,6 +1,6 @@
 module CounterCulture
   class Counter
-    CONFIG_OPTIONS = [ :column_names, :counter_cache_name, :delta_column, :foreign_key_values, :touch, :delta_magnitude, :execute_after_commit ]
+    CONFIG_OPTIONS = [ :column_names, :counter_cache_name, :delta_column, :foreign_key_values, :touch, :delta_magnitude, :execute_after_commit, :watch_attrs ]
     ACTIVE_RECORD_VERSION = Gem.loaded_specs["activerecord"].version
 
     attr_reader :model, :relation, *CONFIG_OPTIONS
@@ -17,6 +17,7 @@ module CounterCulture
       @delta_magnitude = options[:delta_magnitude] || 1
       @execute_after_commit = options.fetch(:execute_after_commit, false)
       @with_papertrail = options.fetch(:with_papertrail, false)
+      @watch_attrs = [options[:watch_attrs]].flatten.map(&:to_s) if options[:watch_attrs]
     end
 
     # increments or decrements a counter cache
@@ -31,7 +32,7 @@ module CounterCulture
     #      first part of the relation
     #   :execute_after_commit => execute the column update outside of the transaction to avoid deadlocks
     #   :with_papertrail => update the column via Papertrail touch_with_version method
-    def change_counter_cache(obj, options)
+    def change_counter_cache(obj, options = {})
       change_counter_column = options.fetch(:counter_column) { counter_cache_name_for(obj) }
 
       # default to the current foreign key value
@@ -42,6 +43,17 @@ module CounterCulture
       if id_to_change && change_counter_column
         delta_magnitude = if delta_column
                             (options[:was] ? attribute_was(obj, delta_column) : obj.public_send(delta_column)) || 0
+                          elsif watch_attrs.present?
+                            magnitude = counter_delta_magnitude_for(obj)
+                            if magnitude > 0
+                              options.merge!(increment: true)
+                              magnitude
+                            elsif magnitude < 0
+                              options.merge!(increment: false)
+                              magnitude.abs
+                            else
+                              0
+                            end
                           else
                             counter_delta_magnitude_for(obj)
                           end
@@ -89,7 +101,13 @@ module CounterCulture
     # obj: object to calculate the counter cache name for
     def counter_delta_magnitude_for(obj)
       if delta_magnitude.is_a?(Proc)
-        delta_magnitude.call(obj)
+        if watch_attrs.present?
+          old_value = delta_magnitude.call(previous_model(obj))
+          new_value = delta_magnitude.call(obj)
+          new_value - old_value
+        else
+          delta_magnitude.call(obj)
+        end
       else
         delta_magnitude
       end

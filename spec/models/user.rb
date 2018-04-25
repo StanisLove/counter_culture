@@ -1,32 +1,22 @@
 class User < ActiveRecord::Base
   belongs_to :employer
 
-  belongs_to :manages_company, :class_name => "Company"
-  counter_culture :manages_company, :column_name => "managers_count"
+  belongs_to :manages_company, class_name: 'Company'
+  counter_culture :manages_company, column_name: 'managers_count'
   belongs_to :has_string_id
   counter_culture :has_string_id
 
   has_many :reviews
-  accepts_nested_attributes_for :reviews, :allow_destroy => true
+  accepts_nested_attributes_for :reviews, allow_destroy: true
 
-  if Rails.version >= "5.0.0"
-    has_paper_trail
-  end
+  has_paper_trail if Rails.version >= '5.0.0'
 
   default_scope do
     if _default_scope_enabled
-      query = joins("LEFT OUTER JOIN companies")
-      if Rails.version < "5.0.0"
-        query = query.uniq
-      else
-        query = query.distinct
-      end
+      query = joins('LEFT OUTER JOIN companies')
+      query = Rails.version < '5.0.0' ? query.uniq : query.distinct
     else
-      if Rails.version < "4.0.0"
-        scoped
-      else
-        all
-      end
+      Rails.version < '4.0.0' ? scoped : all
     end
   end
 

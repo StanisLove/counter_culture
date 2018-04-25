@@ -668,24 +668,44 @@ describe "CounterCulture" do
     expect(industry2.rexiews_count).to eq(1)
   end
 
+  it "correctly handles delta magnitude on attribute updating" do
+    user = User.create
+    product = Product.create
+
+    review = Review.create(
+      user_id: user.id,
+      review_type: 'using',
+      product_id: product.id,
+      heavy: true
+    )
+
+    user.reload
+    expect(user.heavy_reviews_count).to eq(1)
+
+    review.update!(heavy: false)
+
+    user.reload
+    expect(user.heavy_reviews_count).to eq(0)
+  end
+
   it "correctly handles dynamic delta magnitude" do
     user = User.create
     product = Product.create
 
     review_heavy = Review.create(
-      :user_id => user.id,
-      :review_type => 'using',
-      :product_id => product.id,
-      :heavy => true,
+      user_id: user.id,
+      review_type: 'using',
+      product_id: product.id,
+      heavy: true
     )
     user.reload
     expect(user.dynamic_delta_count).to eq(2)
 
     review_light = Review.create(
-      :user_id => user.id,
-      :product_id => product.id,
-      :review_type => 'using',
-      :heavy => false,
+      user_id: user.id,
+      product_id: product.id,
+      review_type: 'using',
+      heavy: false
     )
     user.reload
     expect(user.dynamic_delta_count).to eq(3)
